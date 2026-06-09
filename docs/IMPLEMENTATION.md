@@ -28,7 +28,7 @@ There is **no separate microservice** for the agent: orchestration lives in Pyth
 | `backend/app/services/` | Business logic: contracts loader, validation, Fivetran MCP, agent orchestrator, incidents, RCA, remediation execution |
 | `backend/agent_builder/` | Google Cloud Agent Builder (ADK) agent definition |
 | `frontend/app/` | Pages, `loading.tsx` skeletons, API route handlers |
-| `frontend/app/api/[[...path]]/route.ts` | Reverse proxy from Next to FastAPI when `BACKEND_URL` is set |
+| `frontend/middleware.ts` | Reverse proxy from Next to FastAPI when `BACKEND_URL` is set |
 | `frontend/lib/api.ts`, `frontend/lib/platform.ts` | Server fetch helpers; platform status cached 15s via `unstable_cache` |
 | `frontend/components/guardian/` | Agent pipeline, MCP discovery panel, system status, workflow stepper |
 | `contracts/*.yaml` | Contract registry files read at runtime |

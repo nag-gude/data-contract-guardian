@@ -353,7 +353,7 @@ backend/
 └── data/                  local SQLite (gitignored)
 
 frontend/
-├── app/                   pages + /api/[[...path]] proxy
+├── app/                   pages + middleware.ts /api proxy
 ├── components/guardian/   Agent pipeline, MCP discovery, system status, workflow stepper
 ├── lib/api.ts             Server fetch helpers
 └── package.json

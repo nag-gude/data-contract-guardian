@@ -59,7 +59,7 @@ npm install && npm run dev
 
 * UI: `http://localhost:3000`
 
-Browser calls to `/api/...` are proxied to FastAPI by `frontend/app/api/[[...path]]/route.ts`. Without `BACKEND_URL`, those routes return **503**.
+Browser calls to `/api/...` are proxied to FastAPI by `frontend/middleware.ts`. Without `BACKEND_URL`, those routes return **503**.
 
 ### ADK web UI (optional, chat-only)
 
