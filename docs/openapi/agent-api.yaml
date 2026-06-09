@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: Data Contract Guardian — Read-only Agent API
+  version: 0.1.0
+  description: |
+    Trimmed surface for Google Cloud Agent Builder / ADK import.
+    Investigation and discovery only — approve remediations via the UI or POST /api/incidents/approve-remediation.
+servers:
+  - url: https://YOUR-BACKEND-URL
+paths:
+  /api/agent/platform:
+    get:
+      operationId: guardianPlatformStatus
+      summary: Integration and workflow status snapshot
+      responses:
+        "200":
+          description: Platform status
+  /api/agent/discover/{contract_id}:
+    post:
+      operationId: guardianDiscoverContract
+      summary: Validate contract and fetch Fivetran MCP evidence (read-only)
+      parameters:
+        - name: contract_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: network_alarm_v1
+      responses:
+        "200":
+          description: Discovery result with mcp_trace and summary_for_agent
+  /api/agent/investigate:
+    post:
+      operationId: guardianInvestigateContract
+      summary: Full agent investigation (optional incident open via UI workflow)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contract_id]
+              properties:
+                contract_id:
+                  type: string
+                open_incident:
+                  type: boolean
+                  default: false
+                require_failure:
+                  type: boolean
+                  default: false
+      responses:
+        "200":
+          description: Investigation with transcript, evidence, mcp_trace

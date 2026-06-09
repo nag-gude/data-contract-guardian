@@ -1,0 +1,17 @@
+project_id = "my-gcp-project-id"
+# region                  = "us-central1"
+# image_tag               = "latest"
+# gemini_model            = "gemini-3.5-flash"
+# gemini_location         = "us-central1"            # Vertex region for Gemini (align with Cloud Run)
+# gemini_safety_threshold = "BLOCK_ONLY_HIGH"
+# mock_bigquery           = true   # set false for live BigQuery INFORMATION_SCHEMA checks
+
+# --- Live Fivetran MCP -------------------------------------------------------
+# Set mock_fivetran_mcp = false to run the real fivetran/fivetran-mcp server.
+# When live, Terraform creates Secret Manager secrets from the two values below
+# and injects them into Cloud Run; both are required (apply fails fast otherwise).
+# mock_fivetran_mcp   = false
+# fivetran_api_key    = "ft_xxx"   # prefer: pass via TF_VAR_fivetran_api_key env var
+# fivetran_api_secret = "ft_yyy"   # prefer: pass via TF_VAR_fivetran_api_secret env var
+# fivetran_connection_id = "toll_donator"  # Fivetran dashboard slug (preferred)
+# bq_dataset = "airtable_network_appxzsmwynqrvmfcq"  # Fivetran destination schema slug in BigQuery
