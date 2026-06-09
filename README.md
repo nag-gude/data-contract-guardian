@@ -1,5 +1,7 @@
 # Data Contract Guardian
 
+![Data Contract Guardian — AI-powered data reliability for Fivetran → BigQuery pipelines](assets/Thumbnail.png)
+
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Live demo](https://img.shields.io/badge/Live%20demo-Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)
