@@ -1,0 +1,60 @@
+# Cloud Build config: Optimized parallel builds + pushes + Terraform deploy
+timeout: 1800s
+
+steps:
+  # -----------------------------
+  # 1. Build & Push Docker Images
+  # -----------------------------
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-backend
+    args:
+      - build
+      - -f
+      - deploy/Dockerfile.backend
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_BACKEND_SERVICE_NAME}:${_IMAGE_TAG}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-backend
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_BACKEND_SERVICE_NAME}:${_IMAGE_TAG}
+    waitFor: ['build-backend']
+  
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-frontend
+    args:
+      - build
+      - -f
+      - deploy/Dockerfile.frontend
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_FRONTEND_SERVICE_NAME}:${_IMAGE_TAG}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-frontend
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_FRONTEND_SERVICE_NAME}:${_IMAGE_TAG}
+    waitFor: ['build-frontend']
+
+# -----------------------------
+# 2. Images for Cloud Build caching/visibility
+# -----------------------------
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_BACKEND_SERVICE_NAME}:${_IMAGE_TAG}'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_FRONTEND_SERVICE_NAME}:${_IMAGE_TAG}'
+
+
+# -----------------------------
+# 3. Substitutions
+# -----------------------------
+substitutions:
+  _REGION: us-central1
+  _REPO_NAME: data-contract-guardian
+  _IMAGE_TAG: latest
+  _FRONTEND_SERVICE_NAME: frontend
+  _BACKEND_SERVICE_NAME: backend

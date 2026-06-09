@@ -1,0 +1,15 @@
+contract_id: network_cdr_freshness_v1
+warehouse: bigquery
+fivetran_connector_id: ft_airtable_network
+bq_project: demo-gcp-project
+bq_dataset: network
+bq_table: cdr
+freshness:
+  max_delay_minutes: 30
+schema:
+  required_columns:
+  - cdr_id
+  - subscriber_id
+  - charge_amount
+  column_types:
+    charge_amount: FLOAT

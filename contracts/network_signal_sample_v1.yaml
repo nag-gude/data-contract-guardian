@@ -1,0 +1,21 @@
+contract_id: network_signal_sample_v1
+warehouse: bigquery
+fivetran_connector_id: ft_airtable_network
+bq_project: demo-gcp-project
+bq_dataset: network
+bq_table: signal_sample
+freshness:
+  max_delay_minutes: 120
+schema:
+  required_columns:
+  - sample_id
+  - cell_id
+  - subscriber_id
+  - rsrp_dbm
+  - rsrq_db
+  - sampled_at
+  column_types:
+    rsrp_dbm: FLOAT
+    rsrq_db: FLOAT
+volume:
+  daily_row_variance_percent: 40

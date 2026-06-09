@@ -1,0 +1,19 @@
+contract_id: network_cell_tower_v1
+warehouse: bigquery
+fivetran_connector_id: ft_airtable_network
+bq_project: demo-gcp-project
+bq_dataset: network
+bq_table: cell_tower
+freshness:
+  max_delay_minutes: 1440
+schema:
+  required_columns:
+  - cell_id
+  - site_name
+  - latitude
+  - longitude
+  - technology
+  - status
+  column_types:
+    latitude: FLOAT
+    longitude: FLOAT

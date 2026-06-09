@@ -1,0 +1,14 @@
+contract_id: network_alarm_v1
+warehouse: bigquery
+fivetran_connector_id: ft_airtable_network
+bq_project: demo-gcp-project
+bq_dataset: network
+bq_table: network_alarm
+freshness:
+  max_delay_minutes: 15
+schema:
+  required_columns:
+  - alarm_id
+  - cell_id
+  - severity
+  - raised_at

@@ -1,0 +1,22 @@
+contract_id: network_data_session_v1
+warehouse: bigquery
+fivetran_connector_id: ft_airtable_network
+bq_project: demo-gcp-project
+bq_dataset: network
+bq_table: data_session
+freshness:
+  max_delay_minutes: 60
+schema:
+  required_columns:
+  - session_id
+  - subscriber_id
+  - apn
+  - rx_bytes
+  - tx_bytes
+  - data_charge
+  column_types:
+    rx_bytes: INTEGER
+    tx_bytes: INTEGER
+    data_charge: FLOAT
+volume:
+  daily_row_variance_percent: 30
