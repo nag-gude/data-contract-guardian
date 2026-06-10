@@ -15,3 +15,8 @@ project_id = "my-gcp-project-id"
 # fivetran_api_secret = "ft_yyy"   # prefer: pass via TF_VAR_fivetran_api_secret env var
 # fivetran_connection_id = "toll_donator"  # Fivetran dashboard slug (preferred)
 # bq_dataset = "airtable_network_appxzsmwynqrvmfcq"  # Fivetran destination schema slug in BigQuery
+
+# --- Gemini API key (AI Studio) ----------------------------------------------
+# Prefer TF_VAR_gemini_api_key over committing the key in tfvars.
+# When set, backend Cloud Run uses GEMINI_BACKEND=ai_studio (good for gemini-3.5-flash).
+# gemini_api_key = "your_gemini_api_key"

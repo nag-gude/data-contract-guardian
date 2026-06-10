@@ -115,3 +115,22 @@ variable "mock_bigquery" {
   description = "Use mock warehouse; set false for live BigQuery INFORMATION_SCHEMA checks."
   default     = false
 }
+
+variable "gemini_api_key" {
+  type        = string
+  description = "Gemini API key (AI Studio) — stored in Secret Manager and injected into Cloud Run as GEMINI_API_KEY."
+  default     = ""
+  sensitive   = true
+}
+
+variable "create_adk_staging_bucket" {
+  type        = bool
+  description = "Create GCS bucket for ADK Agent Engine deploy staging artifacts."
+  default     = true
+}
+
+variable "adk_staging_bucket_name" {
+  type        = string
+  description = "Override ADK staging bucket name (default: {project_id}-dcg-adk-staging)."
+  default     = null
+}

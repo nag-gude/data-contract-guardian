@@ -6,6 +6,8 @@ locals {
 
   # Live Fivetran MCP needs real credentials wired through Secret Manager.
   fivetran_live = !var.mock_fivetran_mcp
+  # Gemini AI Studio key — preferred on Cloud Run for models like gemini-3.5-flash.
+  gemini_live = var.gemini_api_key != ""
 }
 
 resource "google_project_service" "apis" {
@@ -15,6 +17,7 @@ resource "google_project_service" "apis" {
     "aiplatform.googleapis.com",
     "bigquery.googleapis.com",
     "secretmanager.googleapis.com",
+    "storage.googleapis.com",
   ])
 
   project            = var.project_id
@@ -78,6 +81,34 @@ resource "google_secret_manager_secret_iam_member" "fivetran_api_key" {
 resource "google_secret_manager_secret_iam_member" "fivetran_api_secret" {
   count     = local.fivetran_live ? 1 : 0
   secret_id = google_secret_manager_secret.fivetran_api_secret[0].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.backend.email}"
+}
+
+# ---------------------------------------------------------------------------
+# Secret Manager — Gemini API key (AI Studio). When set, backend uses
+# GEMINI_BACKEND=ai_studio instead of Vertex ADC (better for gemini-3.5-flash).
+# ---------------------------------------------------------------------------
+resource "google_secret_manager_secret" "gemini_api_key" {
+  count     = local.gemini_live ? 1 : 0
+  secret_id = "dcg-gemini-api-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "gemini_api_key" {
+  count       = local.gemini_live ? 1 : 0
+  secret      = google_secret_manager_secret.gemini_api_key[0].id
+  secret_data = var.gemini_api_key
+}
+
+resource "google_secret_manager_secret_iam_member" "gemini_api_key" {
+  count     = local.gemini_live ? 1 : 0
+  secret_id = google_secret_manager_secret.gemini_api_key[0].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.backend.email}"
 }
@@ -176,17 +207,24 @@ resource "google_cloud_run_v2_service" "backend" {
         value = var.gemini_location
       }
       # ADK reads GOOGLE_CLOUD_* / GOOGLE_GENAI_USE_VERTEXAI (not GCP_PROJECT_ID).
+      # When GEMINI_API_KEY is mounted, use AI Studio (GEMINI_BACKEND=ai_studio).
       env {
         name  = "GOOGLE_GENAI_USE_VERTEXAI"
-        value = "true"
+        value = local.gemini_live ? "false" : "true"
       }
-      env {
-        name  = "GOOGLE_CLOUD_PROJECT"
-        value = var.project_id
+      dynamic "env" {
+        for_each = local.gemini_live ? [] : [1]
+        content {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = var.project_id
+        }
       }
-      env {
-        name  = "GOOGLE_CLOUD_LOCATION"
-        value = var.gemini_location
+      dynamic "env" {
+        for_each = local.gemini_live ? [] : [1]
+        content {
+          name  = "GOOGLE_CLOUD_LOCATION"
+          value = var.gemini_location
+        }
       }
       env {
         name  = "USE_AGENT_BUILDER"
@@ -194,7 +232,19 @@ resource "google_cloud_run_v2_service" "backend" {
       }
       env {
         name  = "GEMINI_BACKEND"
-        value = "auto"
+        value = local.gemini_live ? "ai_studio" : "auto"
+      }
+      dynamic "env" {
+        for_each = local.gemini_live ? [1] : []
+        content {
+          name = "GEMINI_API_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.gemini_api_key[0].secret_id
+              version = "latest"
+            }
+          }
+        }
       }
       env {
         name  = "GEMINI_MODEL"
@@ -281,6 +331,7 @@ resource "google_cloud_run_v2_service" "backend" {
     google_project_iam_member.backend_bq_job,
     google_secret_manager_secret_iam_member.fivetran_api_key,
     google_secret_manager_secret_iam_member.fivetran_api_secret,
+    google_secret_manager_secret_iam_member.gemini_api_key,
   ]
 }
 
