@@ -1,0 +1,3 @@
+# Deploy venv deps (isolated from Cloud Shell global Python).
+# google-adk is required locally: Agent Engine SDK imports root_agent before upload.
+-r ../guardian-adk/guardian_assistant/requirements.txt
