@@ -25,7 +25,7 @@ Built with **Google Cloud Agent Builder (ADK)** · **Gemini** · the **Fivetran 
 ![GCP](https://img.shields.io/badge/GCP-Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?logo=terraform&logoColor=white)
 
----
+
 
 ## The problem
 
