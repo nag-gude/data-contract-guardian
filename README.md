@@ -25,7 +25,7 @@ Built with **Google Cloud Agent Builder (ADK)** · **Gemini** · the **Fivetran 
 ![GCP](https://img.shields.io/badge/GCP-Cloud%20Run-4285F4?logo=googlecloud&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?logo=terraform&logoColor=white)
 
-
+---
 
 ## The problem
 
@@ -73,12 +73,14 @@ The agent proposes and coordinates; **humans approve**. Nothing with a side effe
 | Service | Role in this project | Status |
 | ------- | -------------------- | ------ |
 | **Gemini** | Investigation plan, evidence-grounded RCA, stakeholder summary (`gemini-3.5-flash` on Vertex `us-central1`) | Implemented |
-| **Agent Builder (ADK)** | `McpToolset` → `fivetran/fivetran-mcp` over stdio; `adk web agent_builder` for local chat | Implemented |
+| **Agent Builder (ADK)** | Production orchestrator (`agent_builder/`) + chat package (`guardian-adk/`) | Implemented |
+| **Vertex Agent Engine** | Hosted ADK playground via `scripts/deploy-adk-agent-engine.sh` | Implemented |
 | **Cloud Run** | Hosted UI + API (`us-central1`); frontend proxies `/api/*` to backend | Implemented |
 | **BigQuery** | Live `INFORMATION_SCHEMA` + semantic SQL when `MOCK_BIGQUERY=false` | Implemented |
 | **Artifact Registry** | Container images for backend and frontend | Implemented |
-| **Secret Manager** | Fivetran API key/secret injected into Cloud Run when live MCP is enabled | Implemented |
-| **Terraform** | IaC for Cloud Run, IAM, secrets, scaling | Implemented |
+| **Secret Manager** | Gemini API key + Fivetran credentials on Cloud Run | Implemented |
+| **Cloud Storage** | ADK Agent Engine deploy staging bucket | Implemented |
+| **Terraform** | IaC for Cloud Run, IAM, secrets, GCS | Implemented |
 
 ## Fivetran integration (partner track)
 
@@ -360,10 +362,11 @@ frontend/
 ├── lib/api.ts             Server fetch helpers
 └── package.json
 
-docs/                      Implementation, deployment, Fivetran guides
-deploy/                    Dockerfiles
-terraform/                 GCP: Artifact Registry, Cloud Run, Secret Manager
-scripts/                   gcp-push-images.sh
+guardian-adk/              Standalone chat ADK (adk web / Agent Engine)
+docs/                      Architecture, deployment, Fivetran guides
+deploy/                    Dockerfiles (required for Cloud Build)
+terraform/                 GCP: Cloud Run, Secret Manager, ADK staging bucket
+scripts/                   gcp-push-images, adk-playground, deploy-adk-agent-engine
 ```
 
 ## Key design decisions
@@ -501,13 +504,16 @@ Full templates: **[`.env.example`](./.env.example)** · Deep dive: **[docs/DEPLO
 
 | Guide | Purpose |
 | ----- | ------- |
-| [docs/README.md](./docs/README.md) | Engineering docs index |
-| [docs/FIVETRAN.md](./docs/FIVETRAN.md) | Airtable → BigQuery ingestion, contracts, live validation, MCP |
-| [docs/IMPLEMENTATION.md](./docs/IMPLEMENTATION.md) | Architecture, code layout, APIs, data flow |
-| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Docker, Terraform, Cloud Run, Secret Manager |
-| [docs/openapi/agent-api.yaml](./docs/openapi/agent-api.yaml) | Read-only agent API for Agent Builder import |
-| [backend/agent_builder/README.md](./backend/agent_builder/README.md) | ADK local chat (`adk web agent_builder`) |
-| [docs/SUBMISSION.md](./docs/SUBMISSION.md) | Hackathon submission narrative (Devpost copy) |
+| [docs/README.md](./docs/README.md) | **Docs index** — start here by role |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System diagram, flows, safety boundaries |
+| [docs/IMPLEMENTATION.md](./docs/IMPLEMENTATION.md) | Code layout, APIs, orchestrator, SQLite |
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Local dev, Docker, Cloud Build, Terraform, Cloud Run |
+| [docs/FIVETRAN.md](./docs/FIVETRAN.md) | Airtable → BigQuery, live MCP, `BQ_DATASET` |
+| [docs/agent-builder-setup.md](./docs/agent-builder-setup.md) | ADK Web UI + Vertex Agent Engine playground |
+| [guardian-adk/README.md](./guardian-adk/README.md) | Chat agent package (`guardian_assistant`) |
+| [terraform/README.md](./terraform/README.md) | Terraform quick start, secrets, outputs |
+| [docs/openapi/agent-api.yaml](./docs/openapi/agent-api.yaml) | Read-only agent API (OpenAPI) |
+| [backend/agent_builder/README.md](./backend/agent_builder/README.md) | Production ADK on Cloud Run |
 
 Interactive API: Swagger at `/docs` on the FastAPI host.
 

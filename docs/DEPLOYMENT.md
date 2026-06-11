@@ -2,6 +2,8 @@
 
 This guide covers **local development**, **environment configuration**, **Docker images**, and **Google Cloud Platform (GCP)** deployment using **Terraform** and **Cloud Run**.
 
+**See also:** [Architecture](./ARCHITECTURE.md) · [Terraform README](../terraform/README.md) · [Agent Builder setup](./agent-builder-setup.md)
+
 ## Prerequisites
 
 ### Local development
@@ -61,26 +63,36 @@ npm install && npm run dev
 
 Browser calls to `/api/...` are proxied to FastAPI by `frontend/middleware.ts`. Without `BACKEND_URL`, those routes return **503**.
 
-### ADK web UI (optional, chat-only)
+### ADK Web UI (optional, chat-only)
+
+Standalone ADK package (consentops-agent pattern) — calls Cloud Run read-only `/api/agent/*` tools:
 
 ```bash
-cd backend
-export PYTHONPATH=.
-export GCP_PROJECT_ID=your-project
-export GOOGLE_GENAI_USE_VERTEXAI=true
-export GOOGLE_CLOUD_PROJECT=$GCP_PROJECT_ID
-export GOOGLE_CLOUD_LOCATION=us-central1
-export GEMINI_MODEL=gemini-2.5-flash
-export MOCK_FIVETRAN_MCP=false
-export MOCK_BIGQUERY=false
-export BQ_DATASET=your_fivetran_destination_schema
-export FIVETRAN_CONNECTION_ID=your_connection_slug
-# FIVETRAN_API_KEY / FIVETRAN_API_SECRET
-
-adk web agent_builder
+pip install -r guardian-adk/guardian_assistant/requirements.txt
+export GEMINI_API_KEY=your_key   # or Vertex ADC
+export FIVETRAN_API_KEY=...      # optional native MCP locally
+export FIVETRAN_API_SECRET=...
+./scripts/adk-playground-local.sh
 ```
 
-See [backend/agent_builder/README.md](../backend/agent_builder/README.md) for sample prompts. Approval and remediation execution still go through the Guardian UI or `POST /api/incidents/approve-remediation`.
+Open http://127.0.0.1:8081 → **guardian_assistant**. See [guardian-adk/README.md](../guardian-adk/README.md) and [docs/agent-builder-setup.md](./agent-builder-setup.md).
+
+Approval and remediation execution still go through the Guardian UI or `POST /api/incidents/approve-remediation`.
+
+### Agent Engine playground (hosted ADK)
+
+```bash
+cd terraform && terraform apply && cd ..
+gcloud auth application-default login
+./scripts/deploy-adk-agent-engine.sh --recreate
+```
+
+* Uses isolated venv `.adk-deploy-venv/` (do not `pip install` globally on Cloud Shell)
+* Staging bucket from `terraform output -raw adk_staging_bucket`
+* Console playground URL printed at end; engine id in `guardian-adk/.agent_engine_id`
+* Use `--recreate` after `guardian-adk/guardian_assistant/agent.py` or `requirements.txt` changes
+
+Full guide: [agent-builder-setup.md](./agent-builder-setup.md)
 
 ### Demo script (local, mock mode)
 
@@ -104,7 +116,8 @@ Copy **[`.env.example`](../.env.example)**.
 | `GEMINI_MODEL` | `gemini-2.5-flash` | GA in `us-central1`; use `global` + `gemini-3.5-*` if needed |
 | `GEMINI_FALLBACK_MODEL` | `gemini-2.5-flash` | Used when primary model fails |
 | `GEMINI_LOCATION` | `us-central1` | Vertex region for Gemini |
-| `GEMINI_BACKEND` | `auto` | `auto` \| `vertex` \| `ai_studio` |
+| `GEMINI_API_KEY` | — | AI Studio key; on Cloud Run inject via Terraform `TF_VAR_gemini_api_key` |
+| `GEMINI_BACKEND` | `auto` | `auto` \| `vertex` \| `ai_studio` (Terraform sets `ai_studio` when API key is mounted) |
 | `USE_AGENT_BUILDER` | `true` | ADK path when `google-adk` installed |
 | `MOCK_FIVETRAN_MCP` | `true` | `false` for live Fivetran MCP (needs API key + secret) |
 | `MOCK_BIGQUERY` | `true` | `false` for live BigQuery validation |
@@ -154,12 +167,15 @@ cp terraform.tfvars.example terraform.tfvars
 terraform init
 ```
 
-**Secrets:** pass Fivetran credentials via env, not committed tfvars:
+**Secrets:** pass Fivetran and Gemini credentials via env, not committed tfvars:
 
 ```bash
 export TF_VAR_fivetran_api_key=...
 export TF_VAR_fivetran_api_secret=...
+export TF_VAR_gemini_api_key=...    # AI Studio key → Secret Manager → Cloud Run GEMINI_API_KEY
 ```
+
+When `gemini_api_key` is set, the backend uses `GEMINI_BACKEND=ai_studio` (recommended for `gemini-3.5-flash`). Without it, Cloud Run falls back to Vertex ADC (`GEMINI_BACKEND=auto`).
 
 Example `terraform.tfvars` for live hackathon demo:
 
@@ -204,7 +220,8 @@ terraform output backend_url
 
 * Backend **`max_instance_count = 1`** — SQLite on `/tmp` is per-instance; single instance keeps incidents and workflow counters consistent.
 * Backend **`min_instance_count = 1`** — avoids cold-start latency for MCP + Gemini.
-* Vertex env vars set automatically: `GOOGLE_GENAI_USE_VERTEXAI`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`.
+* **Gemini:** with `TF_VAR_gemini_api_key`, Terraform stores the key in Secret Manager (`dcg-gemini-api-key`) and mounts `GEMINI_API_KEY` on the backend. Without it, Vertex env vars are set: `GOOGLE_GENAI_USE_VERTEXAI`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`.
+* The **frontend UI** does not call Gemini; it reads `platform.gemini` from the backend `/api/status` endpoint.
 * Fivetran MCP in container uses `FIVETRAN_MCP_COMMAND=fivetran-mcp` (bundled in image, not `uvx`).
 
 ### 4.6 Redeploy after code changes
@@ -216,9 +233,54 @@ cd terraform && terraform apply
 
 Env-only changes (e.g. `gemini_model`, `bq_dataset`) need only `terraform apply`.
 
+### 4.7 Cloud Build (alternative to local Docker)
+
+From **repository root** (requires `deploy/` in upload — root `.gcloudignore` keeps it):
+
+```bash
+gcloud builds submit --config=cloudbuild.yaml .
+```
+
+Builds and pushes `backend:latest` and `frontend:latest` to Artifact Registry. Then:
+
+```bash
+cd terraform && terraform apply
+```
+
+**Substitutions** (override via `--substitutions=_IMAGE_TAG=v1`):
+
+| Variable | Default |
+| -------- | ------- |
+| `_REGION` | `us-central1` |
+| `_REPO_NAME` | `data-contract-guardian` |
+| `_BACKEND_SERVICE_NAME` | `backend` |
+| `_FRONTEND_SERVICE_NAME` | `frontend` |
+| `_IMAGE_TAG` | `latest` |
+
+If build fails with `lstat /workspace/deploy: no such file or directory`, ensure `deploy/Dockerfile.backend` exists in the uploaded tarball (check `.gcloudignore`).
+
+### 4.8 Terraform outputs
+
+```bash
+terraform output frontend_url
+terraform output backend_url
+terraform output -raw adk_staging_bucket
+terraform output gemini_secret_configured
+```
+
 ---
 
-## 5. Troubleshooting
+## 5. Scripts reference
+
+| Script | Purpose |
+| ------ | ------- |
+| `scripts/gcp-push-images.sh` | Local Docker build + push both images |
+| `scripts/adk-playground-local.sh` | `adk web guardian-adk` on port 8081 |
+| `scripts/deploy-adk-agent-engine.sh` | Deploy chat agent to Vertex Agent Engine |
+
+---
+
+## 6. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 | ------- | ------------- | --- |
@@ -230,15 +292,23 @@ Env-only changes (e.g. `gemini_model`, `bq_dataset`) need only `terraform apply`
 | `terraform apply` image error | Image not pushed | Run `gcp-push-images.sh` first |
 | Slow first page load | MCP discovery client-side | Expected — shell renders first; discovery loads in background |
 | ADK: no API key | Vertex not configured | Set `GCP_PROJECT_ID` + ADC, or `GEMINI_API_KEY` for AI Studio |
+| Cloud Build: `deploy` not found | Incomplete source upload | Add `.gcloudignore`; confirm `deploy/` in repo |
+| Agent Engine: `No module named google.adk` | Stale deploy venv | `rm -rf .adk-deploy-venv && ./scripts/deploy-adk-agent-engine.sh --recreate` |
+| Gemini `backend: none` on Cloud Run | No key and no Vertex ADC | Set `TF_VAR_gemini_api_key` and `terraform apply` |
+| MCP / pipeline OOM (512Mi) | Heavy stdio + Gemini | Raise backend memory in `terraform/main.tf` to `1Gi` or `2Gi` |
 
 ---
 
-## 6. Related files
+## 7. Related files
 
 | File | Role |
 | ---- | ---- |
 | [`deploy/Dockerfile.backend`](../deploy/Dockerfile.backend) | API container |
 | [`deploy/Dockerfile.frontend`](../deploy/Dockerfile.frontend) | UI container |
 | [`scripts/gcp-push-images.sh`](../scripts/gcp-push-images.sh) | Build + push both images |
-| [`terraform/`](../terraform/) | Cloud Run, IAM, Secret Manager |
+| [`scripts/adk-playground-local.sh`](../scripts/adk-playground-local.sh) | Local `adk web guardian-adk` |
+| [`scripts/deploy-adk-agent-engine.sh`](../scripts/deploy-adk-agent-engine.sh) | Deploy to Vertex Agent Engine |
+| [`guardian-adk/`](../guardian-adk/) | Standalone ADK agent package |
+| [`terraform/`](../terraform/) | Cloud Run, IAM, Secret Manager, ADK staging bucket |
+| [`docs/agent-builder-setup.md`](./agent-builder-setup.md) | ADK local + Agent Engine guide |
 | [`docs/IMPLEMENTATION.md`](./IMPLEMENTATION.md) | Code-level architecture |

@@ -29,6 +29,39 @@ paths:
       responses:
         "200":
           description: Discovery result with mcp_trace and summary_for_agent
+  /api/agent/fivetran:
+    post:
+      operationId: guardianFivetranMcpProxy
+      summary: Proxy a read-only Fivetran MCP tool via Cloud Run (Agent Engine path)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool]
+              properties:
+                tool:
+                  type: string
+                  example: list_connections
+                arguments:
+                  type: object
+      responses:
+        "200":
+          description: MCP tool result
+  /api/agent/mcp-discovery:
+    post:
+      operationId: guardianMcpDiscovery
+      summary: Run five read-only Fivetran MCP discovery tools
+      parameters:
+        - name: connector_ref
+          in: query
+          schema:
+            type: string
+            example: toll_donator
+      responses:
+        "200":
+          description: Discovery bundles and mcp_trace
   /api/agent/investigate:
     post:
       operationId: guardianInvestigateContract

@@ -16,6 +16,8 @@ Supporting assets:
 
 There is **no separate microservice** for the agent: orchestration lives in Python (`agent_orchestrator`, `agent_rca`, `incident_service`, `remediation_executor`) with a deterministic, step-stamped transcript and optional **Google Gemini** calls (Vertex AI, or an AI Studio `GEMINI_API_KEY`) for natural-language RCA. When `USE_AGENT_BUILDER=true` and `google-adk` is installed, investigations can run through the **Agent Builder (ADK)** agent in `agent_builder/`.
 
+A **second ADK package** (`guardian-adk/guardian_assistant/`) provides read-only chat for `adk web` and **Vertex Agent Engine**. It calls the hosted API via FunctionTools instead of duplicating orchestration. See [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ## Repository layout (implementation-focused)
 
 | Path | Role |
@@ -26,7 +28,8 @@ There is **no separate microservice** for the agent: orchestration lives in Pyth
 | `backend/app/schemas.py` | Pydantic models shared by routers and services |
 | `backend/app/routers/` | HTTP route modules (`contracts`, `incidents`, `validation`, `demo`, `agent`) |
 | `backend/app/services/` | Business logic: contracts loader, validation, Fivetran MCP, agent orchestrator, incidents, RCA, remediation execution |
-| `backend/agent_builder/` | Google Cloud Agent Builder (ADK) agent definition |
+| `backend/agent_builder/` | Production ADK agent (`run_guardian_turn`, `McpToolset`) |
+| `guardian-adk/guardian_assistant/` | Chat ADK agent (FunctionTools → `/api/agent/*`) |
 | `frontend/app/` | Pages, `loading.tsx` skeletons, API route handlers |
 | `frontend/middleware.ts` | Reverse proxy from Next to FastAPI when `BACKEND_URL` is set |
 | `frontend/lib/api.ts`, `frontend/lib/platform.ts` | Server fetch helpers; platform status cached 15s via `unstable_cache` |
@@ -166,6 +169,7 @@ Open incident statuses: `awaiting_approval`, `executing`, `verify_failed`.
 | GET | `/health` | Liveness |
 | GET | `/api/agent/platform` | Integration + workflow counters (lightweight; no MCP spawn) |
 | POST | `/api/agent/mcp-discovery` | Five read-only Fivetran discovery tools |
+| POST | `/api/agent/fivetran` | Proxy one Fivetran MCP tool (Agent Engine; stdio on API) |
 | POST | `/api/agent/discover/{contract_id}` | Validate + investigate; no incident |
 | POST | `/api/agent/investigate` | Agent investigation for one contract |
 | POST | `/api/agent/run-pipeline` | Validate all + agent + open incidents |
